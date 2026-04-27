@@ -1,0 +1,43 @@
+# Python / venv / build artifacts
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Local secrets / runtime state
+.env
+chroma_db
+**/chroma_db
+
+# Sample / user documents — the user ingests their own at runtime
+data
+*.pdf
+
+# Tests and dev-only files (not part of the deliverable)
+test_questions.py
+test_results.md
+test_results.json
+debug_chunker.py
+debug_retrieval.py
+debug_answer.py
+peek_index.py
+tests
+**/tests
+
+# Editors / OS
+.git
+.gitignore
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Compose / docs (not needed inside the image)
+docker-compose.yml
+README.md

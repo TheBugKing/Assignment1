@@ -1,0 +1,5 @@
+# Keep shell scripts as LF so they run inside Linux containers when this
+# repo is cloned/checked out on Windows.
+*.sh         text eol=lf
+entrypoint.sh text eol=lf
+Dockerfile   text eol=lf

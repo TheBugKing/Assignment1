@@ -1,0 +1,27 @@
+# Secrets / local config
+.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local artifacts (user ingests their own document at runtime)
+chroma_db/
+data/*
+!data/.gitkeep
+
+# Local-only test harness — not part of the deliverable
+test_questions.py
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RAG NXP — Document Chat</title>
+  <style>
+    :root {
+      /* Light blue theme */
+      --bg: #eaf4ff;
+      --bg-gradient-end: #d7ecff;
+      --panel: #ffffff;
+      --panel-soft: #f2f8ff;
+      --text: #0d2b4a;
+      --text-strong: #072040;
+      --muted: #5a7794;
+      --accent: #1e6feb;
+      --accent-hover: #1559c9;
+      --accent-soft: #d6e7ff;
+      --border: #c3dbf5;
+      --border-strong: #a7c8ed;
+      --user-bg: #1e6feb;
+      --user-text: #ffffff;
+      --assistant-bg: #ffffff;
+      --assistant-border: #c3dbf5;
+      --chip-bg: #eaf4ff;
+      --err: #b3261e;
+      --shadow: 0 2px 10px rgba(30, 111, 235, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(160deg, var(--bg) 0%, var(--bg-gradient-end) 100%);
+      color: var(--text);
+      line-height: 1.45;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 0.95rem 1.4rem;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-strong);
+      letter-spacing: 0.01em;
+    }
+    header p {
+      margin: 0.3rem 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .shell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      max-width: 1280px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 0.75rem;
+      gap: 0.75rem;
+    }
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+      gap: 0.75rem;
+      min-height: 0;
+    }
+    @media (max-width: 840px) {
+      .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      .chunks-col { max-height: 280px; }
+    }
+    .chat-col, .chunks-col {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .chat-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1rem 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: var(--panel-soft);
+    }
+    .msg {
+      max-width: 92%;
+      padding: 0.7rem 0.9rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      box-shadow: 0 1px 2px rgba(30, 111, 235, 0.05);
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--user-bg);
+      color: var(--user-text);
+      border-bottom-right-radius: 3px;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: var(--assistant-bg);
+      color: var(--text-strong);
+      border: 1px solid var(--assistant-border);
+      border-bottom-left-radius: 3px;
+    }
+    .msg.system {
+      align-self: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      background: transparent;
+      border: 1px dashed var(--border-strong);
+    }
+    .composer {
+      padding: 0.75rem 1rem 1rem;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .composer textarea {
+      width: 100%;
+      min-height: 52px;
+      max-height: 160px;
+      padding: 0.7rem 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-strong);
+      background: #fbfdff;
+      color: var(--text-strong);
+      font-size: 0.95rem;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .composer textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+      background: #ffffff;
+    }
+    .composer-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--accent);
+    }
+    button.secondary:hover {
+      background: var(--accent-soft);
+    }
+    .upload-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-soft);
+      font-size: 0.85rem;
+    }
+    .upload-row label {
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .upload-row input[type="file"] {
+      flex: 1;
+      min-width: 180px;
+      color: var(--text-strong);
+    }
+    .upload-status {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .chunks-col h2 {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-soft);
+      flex-shrink: 0;
+    }
+    .chunks-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+    .chip {
+      margin-bottom: 0.65rem;
+      padding: 0.55rem 0.7rem;
+      border-left: 3px solid var(--accent);
+      background: var(--chip-bg);
+      border-radius: 0 8px 8px 0;
+    }
+    .chip .mh {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+      font-weight: 500;
+    }
+    footer.meta {
+      padding: 0.5rem 1rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+    .err { color: var(--err); font-weight: 500; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RAG NXP — Document Q&amp;A</h1>
+    <p>
+      Local Ollama-backed retrieval-augmented chat. Upload a PDF, then ask questions
+      grounded in its content. Conversation is kept per browser tab.
+    </p>
+  </header>
+  <div class="shell">
+    <div class="main">
+      <div class="chat-col">
+        <div class="upload-row">
+          <label for="pdfFile">Upload PDF:</label>
+          <input type="file" id="pdfFile" accept="application/pdf" />
+          <button type="button" id="uploadBtn" class="secondary">Ingest</button>
+          <span id="uploadStatus" class="upload-status"></span>
+        </div>
+        <div id="chatLog" class="chat-log" aria-live="polite"></div>
+        <div class="composer">
+          <textarea id="q" placeholder="Ask about your PDF… Enter to send, Shift+Enter for new line"></textarea>
+          <div class="composer-row">
+            <button type="button" id="send">Send</button>
+            <button type="button" id="newChat" class="secondary">New chat</button>
+          </div>
+        </div>
+      </div>
+      <aside class="chunks-col">
+        <h2>Retrieved chunks (last reply)</h2>
+        <div id="sources" class="chunks-list">
+          <span style="color: var(--muted);">Chunks appear after each answer.</span>
+        </div>
+      </aside>
+    </div>
+    <footer class="meta" id="meta">Ready.</footer>
+  </div>
+  <script>
+    const SESSION_KEY = "rag_nxp_session_id";
+    const chatLog = document.getElementById("chatLog");
+    const sourcesEl = document.getElementById("sources");
+    const meta = document.getElementById("meta");
+    const q = document.getElementById("q");
+    const send = document.getElementById("send");
+    const newChatBtn = document.getElementById("newChat");
+    const pdfFile = document.getElementById("pdfFile");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const uploadStatus = document.getElementById("uploadStatus");
+
+    function getSessionId() { return sessionStorage.getItem(SESSION_KEY) || ""; }
+    function setSessionId(id) {
+      if (id) sessionStorage.setItem(SESSION_KEY, id);
+      else sessionStorage.removeItem(SESSION_KEY);
+    }
+
+    let isAsking = false;
+    function setBusy(busy) {
+      isAsking = busy;
+      send.disabled = busy;
+      uploadBtn.disabled = busy || uploadBtn.dataset.uploading === "1";
+      newChatBtn.disabled = busy;
+      q.disabled = busy;
+      send.textContent = busy ? "Waiting…" : "Send";
+      q.placeholder = busy
+        ? "Waiting for the previous response…"
+        : "Ask about your PDF… Enter to send, Shift+Enter for new line";
+    }
+
+    function addBubble(role, text) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.textContent = text;
+      chatLog.appendChild(div);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function renderSources(list) {
+      sourcesEl.innerHTML = "";
+      if (!list || !list.length) {
+        sourcesEl.innerHTML = "<span style=\"color: var(--muted);\">No retrieval (e.g. greeting).</span>";
+        return;
+      }
+      list.forEach((s) => {
+        const d = document.createElement("div");
+        d.className = "chip";
+        const mh = document.createElement("div");
+        mh.className = "mh";
+        const hint = s.page_hint ? s.page_hint + " · " : "";
+        mh.textContent = "[" + (s.rank || "?") + "] " + hint + (s.source || "");
+        const body = document.createElement("div");
+        body.textContent = (s.content || "").slice(0, 1200) + ((s.content || "").length > 1200 ? "…" : "");
+        d.appendChild(mh);
+        d.appendChild(body);
+        sourcesEl.appendChild(d);
+      });
+    }
+
+    async function ask() {
+      if (isAsking) return;
+      const question = q.value.trim();
+      if (!question) return;
+      addBubble("user", question);
+      q.value = "";
+      setBusy(true);
+      const thinking = document.createElement("div");
+      thinking.className = "msg assistant";
+      thinking.id = "thinking";
+      thinking.textContent = "…";
+      chatLog.appendChild(thinking);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      try {
+        const sid = getSessionId();
+        const res = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, session_id: sid || undefined }),
+        });
+        const data = await res.json().catch(() => ({}));
+        document.getElementById("thinking")?.remove();
+        if (!res.ok) {
+          addBubble("assistant", "Error: " + (data.detail || res.statusText));
+          meta.innerHTML = "<span class=\"err\">" + (data.detail || "") + "</span>";
+          return;
+        }
+        if (data.session_id) setSessionId(data.session_id);
+        addBubble("assistant", data.answer || "");
+        renderSources(data.sources || []);
+
+        const mm = data.model_metadata || {};
+        let parts = [];
+        if (data.model) parts.push("Model: " + data.model);
+        if (mm.embedding_model) parts.push(mm.embedding_model);
+        if (mm.reply_type === "greeting") parts.push("(greeting)");
+        meta.textContent = parts.join(" · ") + " · session: " + (data.session_id || "").slice(0, 8) + "…";
+      } catch (e) {
+        document.getElementById("thinking")?.remove();
+        addBubble("assistant", "Error: " + String(e));
+      } finally {
+        setBusy(false);
+        q.focus();
+      }
+    }
+
+    async function uploadPdf() {
+      if (isAsking) return;
+      const f = pdfFile.files && pdfFile.files[0];
+      if (!f) {
+        uploadStatus.innerHTML = "<span class=\"err\">Pick a PDF first.</span>";
+        return;
+      }
+      uploadStatus.textContent = "Uploading & indexing…";
+      uploadBtn.dataset.uploading = "1";
+      uploadBtn.disabled = true;
+      send.disabled = true;
+      q.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append("file", f);
+        const res = await fetch("/ingest/upload", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          uploadStatus.innerHTML = "<span class=\"err\">" + (data.detail || res.statusText) + "</span>";
+          return;
+        }
+        uploadStatus.textContent = "Indexed " + data.chunks_indexed + " chunks from " + f.name;
+        addBubble("system", "PDF ingested: " + f.name + " (" + data.chunks_indexed + " chunks).");
+      } catch (e) {
+        uploadStatus.innerHTML = "<span class=\"err\">" + String(e) + "</span>";
+      } finally {
+        delete uploadBtn.dataset.uploading;
+        uploadBtn.disabled = false;
+        send.disabled = isAsking;
+        q.disabled = isAsking;
+      }
+    }
+
+    send.addEventListener("click", ask);
+    q.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (isAsking) return;
+        ask();
+      }
+    });
+    uploadBtn.addEventListener("click", uploadPdf);
+
+    newChatBtn.addEventListener("click", () => {
+      setSessionId("");
+      chatLog.innerHTML = "";
+      sourcesEl.innerHTML = "<span style=\"color: var(--muted);\">Chunks appear after each answer.</span>";
+      meta.textContent = "Started a new chat.";
+      addBubble("system", "New chat — previous messages are cleared for this tab.");
+      q.focus();
+    });
+
+    if (getSessionId()) {
+      meta.textContent = "Resuming session " + getSessionId().slice(0, 8) + "… — or click New chat.";
+    }
+  </script>
+</body>
+</html>
